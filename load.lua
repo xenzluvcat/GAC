@@ -10,7 +10,7 @@ game:GetService("Players").LocalPlayer.Idled:Connect(function()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
--- สร้าง UI สำหรับ Redfinger
+-- สร้าง UI
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
@@ -44,7 +44,7 @@ Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 Title.Parent = MainFrame
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
 Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "Redfinger Fix Mode"
+Title.Text = "Chicken (Redfinger Queue)"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 12)
 
@@ -56,6 +56,9 @@ ToggleWindowBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
+------------------------------------------------------------------
+-- ตัวแปรควบคุมระบบคิว
+------------------------------------------------------------------
 local _G = _G or {}
 _G.AutoUpgrade = false
 _G.AutoRebirth = false
@@ -82,61 +85,50 @@ end
 Instance.new("Frame", MainFrame).Size = UDim2.new(1, 0, 0, 30)
 
 ------------------------------------------------------------------
--- 1. Auto Buy & Upgrade (ขยายเวลาเว้นช่วงสำหรับ Redfinger)
+-- ปุ่มสวิตช์ควบคุม
 ------------------------------------------------------------------
-CreateToggleButton("AutoUpgradeBtn", "Auto Upgrade", function(state)
-    _G.AutoUpgrade = state
-    task.spawn(function()
-        while _G.AutoUpgrade do
-            pcall(function()
-                local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-                if remotes then
+CreateToggleButton("AutoUpgradeBtn", "Auto Upgrade", function(state) _G.AutoUpgrade = state end)
+CreateToggleButton("AutoRebirthBtn", "Auto Rebirth", function(state) _G.AutoRebirth = state end)
+CreateToggleButton("AutoTowerBtn", "Auto Tower", function(state) _G.AutoTower = state end)
+
+------------------------------------------------------------------
+-- ลูปทำงานหลัก (Master Queue Loop) - รันทีละคำสั่งตามคิวเพื่อกันโดนเตะ
+------------------------------------------------------------------
+task.spawn(function()
+    while true do
+        task.wait(1)
+        
+        local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+        if remotes then
+            -- คิวที่ 1: อัพเกรดบ้าน
+            if _G.AutoUpgrade then
+                pcall(function()
                     remotes.BuyGenerator:InvokeServer(1)
-                    task.wait(1.5) -- เว้นช่วง 1.5 วินาที เพื่อไม่ให้เน็ต Redfinger ส่งแพ็กเกจชนกัน
+                    task.wait(0.8)
                     remotes.UpgradeGenerator:InvokeServer(1)
-                    task.wait(1.5)
+                    task.wait(0.8)
                     remotes.BuyGenerator:InvokeServer(2)
-                    task.wait(1.5)
+                    task.wait(0.8)
                     remotes.UpgradeGenerator:InvokeServer(2)
-                end
-            end)
-            task.wait(4)
-        end
-    end)
-end)
-
-------------------------------------------------------------------
--- 2. Auto Rebirth
-------------------------------------------------------------------
-CreateToggleButton("AutoRebirthBtn", "Auto Rebirth", function(state)
-    _G.AutoRebirth = state
-    task.spawn(function()
-        while _G.AutoRebirth do
-            pcall(function()
-                local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-                if remotes then
+                end)
+                task.wait(1.5)
+            end
+            
+            -- คิวที่ 2: เกิดใหม่
+            if _G.AutoRebirth then
+                pcall(function()
                     remotes.Rebirth:InvokeServer()
-                end
-            end)
-            task.wait(5)
-        end
-    end)
-end)
-
-------------------------------------------------------------------
--- 3. Auto Start Tower
-------------------------------------------------------------------
-CreateToggleButton("AutoTowerBtn", "Auto Start Tower", function(state)
-    _G.AutoTower = state
-    task.spawn(function()
-        while _G.AutoTower do
-            pcall(function()
-                local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-                if remotes then
+                end)
+                task.wait(1.5)
+            end
+            
+            -- คิวที่ 3: ลง Tower
+            if _G.AutoTower then
+                pcall(function()
                     remotes.TowerStart:InvokeServer()
-                end
-            end)
-            task.wait(8) -- ตั้งไว้ 8 วินาที เพื่อให้มั่นใจว่าตัวละครใน Redfinger โหลดเข้า Tower เสร็จแล้วจริงๆ
+                end)
+                task.wait(4) -- ให้เวลาเซิร์ฟเวอร์ประมวลผลการเข้า Tower
+            end
         end
-    end)
+    end
 end)
