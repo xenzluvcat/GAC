@@ -89,41 +89,6 @@ end
 Instance.new("Frame", MainFrame).Size = UDim2.new(1, 0, 0, 30)
 
 ------------------------------------------------------------------
--- ระบบ Auto Decline Safe Mode (ไม่รัว ไม่โดน Kick)
-------------------------------------------------------------------
-local isProcessingDecline = false
-
-task.spawn(function()
-    local player = game:GetService("Players").LocalPlayer
-    local remotes = game:GetService("ReplicatedStorage"):WaitForChild("Remotes")
-
-    while true do
-        task.wait(1) -- ตรวจสอบทุกๆ 1 วินาที
-        pcall(function()
-            local playerGui = player:FindFirstChild("PlayerGui")
-            if playerGui and not isProcessingDecline then
-                -- ค้นหาว่าปุ่ม NO THANKS ปรากฏบนหน้าจอหรือเปล่า
-                for _, obj in pairs(playerGui:GetDescendants()) do
-                    if obj:IsA("TextButton") or obj:IsA("TextLabel") then
-                        if string.find(string.upper(obj.Text), "NO THANKS") and obj.Visible then
-                            isProcessingDecline = true
-                            
-                            -- ส่ง Remote เพียงครั้งเดียวหลังพบ UI
-                            task.wait(0.5) -- หน่วงเวลาสมจริงเหมือนคนกด
-                            remotes.TowerContinueDecline:FireServer()
-                            
-                            task.wait(2) -- รอ 2 วินาทีก่อนให้ทำงานครั้งถัดไป
-                            isProcessingDecline = false
-                            break
-                        end
-                    end
-                end
-            end
-        end)
-    end
-end)
-
-------------------------------------------------------------------
 -- 1. Auto Buy & Upgrade
 ------------------------------------------------------------------
 CreateToggleButton("AutoUpgradeBtn", "Auto Upgrade", function(state)
@@ -138,7 +103,7 @@ CreateToggleButton("AutoUpgradeBtn", "Auto Upgrade", function(state)
                 remotes.UpgradeGenerator:InvokeServer(1)
                 remotes.UpgradeGenerator:InvokeServer(2)
             end)
-            task.wait(0.8) -- ปรับคูลดาวน์ให้ปลอดภัยยิ่งขึ้น
+            task.wait(0.8) -- หน่วงเวลาเพื่อความปลอดภัย
         end
     end)
 end)
@@ -166,10 +131,7 @@ CreateToggleButton("AutoTowerBtn", "Auto Tower", function(state)
     task.spawn(function()
         while _G.AutoTower do
             pcall(function()
-                -- สั่งเริ่ม Tower ก็ต่อเมื่อไม่ได้อยู่ในขั้นตอนการกด Decline
-                if not isProcessingDecline then
-                    game:GetService("ReplicatedStorage").Remotes.TowerStart:InvokeServer()
-                end
+                game:GetService("ReplicatedStorage").Remotes.TowerStart:InvokeServer()
             end)
             task.wait(2.5) -- หน่วงเวลาเพื่อป้องกัน Anti-Cheat
         end
