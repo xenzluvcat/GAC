@@ -46,7 +46,7 @@ Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 Title.Parent = MainFrame
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
 Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "Grow A Chicken (Anti-Kick)"
+Title.Text = "Grow A Chicken (Super Safe)"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 12)
 
@@ -89,7 +89,7 @@ end
 Instance.new("Frame", MainFrame).Size = UDim2.new(1, 0, 0, 30)
 
 ------------------------------------------------------------------
--- 1. Auto Buy & Upgrade (ปรับความถี่ให้ปลอดภัยขึ้น)
+-- 1. Auto Buy & Upgrade (แยกจังหวะให้เว้นระยะ ป้องกันตรวจจับ)
 ------------------------------------------------------------------
 CreateToggleButton("AutoUpgradeBtn", "Auto Upgrade", function(state)
     _G.AutoUpgrade = state
@@ -98,16 +98,19 @@ CreateToggleButton("AutoUpgradeBtn", "Auto Upgrade", function(state)
             pcall(function()
                 local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
                 if remotes then
-                    remotes.BuyGenerator:InvokeServer(1)
-                    task.wait(0.3)
-                    remotes.BuyGenerator:InvokeServer(2)
-                    task.wait(0.3)
-                    remotes.UpgradeGenerator:InvokeServer(1)
-                    task.wait(0.3)
-                    remotes.UpgradeGenerator:InvokeServer(2)
+                    -- ซื้อและอัปเกรดชิ้นที่ 1
+                    if remotes:FindFirstChild("BuyGenerator") then remotes.BuyGenerator:InvokeServer(1) end
+                    task.wait(0.8)
+                    if remotes:FindFirstChild("UpgradeGenerator") then remotes.UpgradeGenerator:InvokeServer(1) end
+                    task.wait(0.8)
+                    
+                    -- ซื้อและอัปเกรดชิ้นที่ 2
+                    if remotes:FindFirstChild("BuyGenerator") then remotes.BuyGenerator:InvokeServer(2) end
+                    task.wait(0.8)
+                    if remotes:FindFirstChild("UpgradeGenerator") then remotes.UpgradeGenerator:InvokeServer(2) end
                 end
             end)
-            task.wait(1.5) -- เพิ่มระยะเวลาหน่วงเป็น 1.5 วินาที
+            task.wait(2.5) -- หน่วงเวลารอบใหญ่
         end
     end)
 end)
@@ -125,7 +128,7 @@ CreateToggleButton("AutoRebirthBtn", "Auto Rebirth", function(state)
                     remotes.Rebirth:InvokeServer()
                 end
             end)
-            task.wait(3.0) -- ปรับเป็น 3 วินาทีเพื่อความชัวร์
+            task.wait(5.0) -- เพิ่มเป็น 5 วินาที
         end
     end)
 end)
@@ -143,7 +146,7 @@ CreateToggleButton("AutoTowerBtn", "Auto Tower", function(state)
                     remotes.TowerStart:InvokeServer()
                 end
             end)
-            task.wait(5.0) -- ปรับเป็น 5 วินาที ลดความถี่ไม่ให้โดนเตะ
+            task.wait(8.0) -- หน่วง 8 วินาทีต่อการส่ง 1 ครั้ง
         end
     end)
 end)
