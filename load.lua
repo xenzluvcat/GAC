@@ -3,11 +3,15 @@ if game:GetService("CoreGui"):FindFirstChild("ChickenMobileUI") then
     game:GetService("CoreGui").ChickenMobileUI:Destroy()
 end
 
--- ระบบ Anti-AFK (จำลองการขยับกล้องเบาๆ แทนการกดคลิกปุ่มเพื่อความปลอดภัยบน Cloud Phone)
-local VirtualUser = game:GetService("VirtualUser")
-game:GetService("Players").LocalPlayer.Idled:Connect(function()
-    VirtualUser:CaptureController()
-    VirtualUser:ClickButton2(Vector2.new())
+-- ระบบ Anti-AFK แบบปลอดภัย (ไม่ใช้ VirtualUser ที่โดนตรวจจับง่าย)
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+LocalPlayer.Idled:Connect(function()
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+    task.wait(0.1)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
 end)
 
 -- สร้าง UI หลักสำหรับ Delta มือถือ
@@ -46,7 +50,7 @@ Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 Title.Parent = MainFrame
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
 Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "Grow A Chicken (Super Safe)"
+Title.Text = "Grow A Chicken (Anti-BAC)"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 12)
 
@@ -89,66 +93,43 @@ end
 Instance.new("Frame", MainFrame).Size = UDim2.new(1, 0, 0, 30)
 
 ------------------------------------------------------------------
--- ระบบ Auto Decline (ปรับปรุงลดการสแกนแบบสแปม)
+-- ระบบ Auto Decline (ใช้วิธีดักจับ ChildAdded ปลอดภัย ไม่โดน BAC ตรวจ)
 ------------------------------------------------------------------
-local isProcessingDecline = false
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
 
-task.spawn(function()
-    local player = game:GetService("Players").LocalPlayer
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
-
-    if not remotes then return end
-
-    while task.wait(2) do -- ขยายเวลาเช็คเป็นทุกๆ 2 วินาทีเพื่อลดภาระ
-        if not isProcessingDecline then
-            pcall(function()
-                local playerGui = player:FindFirstChild("PlayerGui")
-                if playerGui then
-                    for _, obj in ipairs(playerGui:GetDescendants()) do
-                        if obj:IsA("TextButton") and obj.Visible then
-                            if string.find(string.upper(obj.Text), "NO THANKS") then
-                                isProcessingDecline = true
-                                task.wait(0.8) -- หน่วงเวลาสมจริง
-                                
-                                if remotes:FindFirstChild("TowerContinueDecline") then
-                                    remotes.TowerContinueDecline:FireServer()
-                                end
-                                
-                                task.wait(3.5) -- พักคูลดาวน์หลังส่ง Remote
-                                isProcessingDecline = false
-                                break
-                            end
-                        end
-                    end
+if LocalPlayer:FindFirstChild("PlayerGui") then
+    LocalPlayer.PlayerGui.DescendantAdded:Connect(function(descendant)
+        if descendant:IsA("TextButton") or descendant:IsA("TextLabel") then
+            if string.find(string.upper(descendant.Text or ""), "NO THANKS") then
+                task.wait(1.2) -- หน่วงเวลาเหมือนคนกดจริง
+                if Remotes and Remotes:FindFirstChild("TowerContinueDecline") then
+                    Remotes.TowerContinueDecline:FireServer()
                 end
-            end)
+            end
         end
-    end
-end)
+    end)
+end
 
 ------------------------------------------------------------------
--- 1. Auto Buy & Upgrade (เพิ่มเวลา Delay ป้องกันการสแปม)
+-- 1. Auto Buy & Upgrade
 ------------------------------------------------------------------
 CreateToggleButton("AutoUpgradeBtn", "Auto Upgrade", function(state)
     _G.AutoUpgrade = state
     task.spawn(function()
-        local remotes = game:GetService("ReplicatedStorage"):WaitForChild("Remotes")
         while _G.AutoUpgrade do
             pcall(function()
-                -- ส่งคำสั่งซื้อ
-                remotes.BuyGenerator:InvokeServer(1)
-                task.wait(0.4)
-                remotes.BuyGenerator:InvokeServer(2)
-                task.wait(0.4)
-                
-                -- ส่งคำสั่งอัปเกรด
-                remotes.UpgradeGenerator:InvokeServer(1)
-                task.wait(0.4)
-                remotes.UpgradeGenerator:InvokeServer(2)
+                if Remotes then
+                    Remotes.BuyGenerator:InvokeServer(1)
+                    task.wait(0.8)
+                    Remotes.BuyGenerator:InvokeServer(2)
+                    task.wait(0.8)
+                    Remotes.UpgradeGenerator:InvokeServer(1)
+                    task.wait(0.8)
+                    Remotes.UpgradeGenerator:InvokeServer(2)
+                end
             end)
-            -- เพิ่มเวลาพักรอบเป็น 2.5 - 3 วินาที (ปลอดภัยจาก Anti-cheat 100%)
-            task.wait(2.5 + math.random()) 
+            task.wait(3 + math.random()) -- ระยะเวลาหน่วงสุ่ม ป้องกันการจับลายเซ็น Loop
         end
     end)
 end)
@@ -159,12 +140,13 @@ end)
 CreateToggleButton("AutoRebirthBtn", "Auto Rebirth", function(state)
     _G.AutoRebirth = state
     task.spawn(function()
-        local remotes = game:GetService("ReplicatedStorage"):WaitForChild("Remotes")
         while _G.AutoRebirth do
             pcall(function()
-                remotes.Rebirth:InvokeServer()
+                if Remotes then
+                    Remotes.Rebirth:InvokeServer()
+                end
             end)
-            task.wait(3.5 + math.random()) -- เพิ่มคูลดาวน์กันตรวจจับ
+            task.wait(4 + math.random())
         end
     end)
 end)
@@ -175,14 +157,13 @@ end)
 CreateToggleButton("AutoTowerBtn", "Auto Tower", function(state)
     _G.AutoTower = state
     task.spawn(function()
-        local remotes = game:GetService("ReplicatedStorage"):WaitForChild("Remotes")
         while _G.AutoTower do
             pcall(function()
-                if not isProcessingDecline then
-                    remotes.TowerStart:InvokeServer()
+                if Remotes then
+                    Remotes.TowerStart:InvokeServer()
                 end
             end)
-            task.wait(4.0 + math.random()) -- เว้นระยะ 4+ วินาทีสำหรับ Redfinger
+            task.wait(5 + math.random())
         end
     end)
 end)
