@@ -21,7 +21,7 @@ ScreenGui.Name = "ChickenMobileUI"
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.ResetOnSpawn = false
 
--- ปุ่ม Menu ลอย (ลากย้ายได้)
+-- ปุ่ม Menu ลอย
 ToggleWindowBtn.Name = "ToggleWindowBtn"
 ToggleWindowBtn.Parent = ScreenGui
 ToggleWindowBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
@@ -46,7 +46,7 @@ Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 Title.Parent = MainFrame
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
 Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "Grow A Chicken (Safe)"
+Title.Text = "Grow A Chicken (Anti-Kick)"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 12)
 
@@ -89,21 +89,25 @@ end
 Instance.new("Frame", MainFrame).Size = UDim2.new(1, 0, 0, 30)
 
 ------------------------------------------------------------------
--- 1. Auto Buy & Upgrade
+-- 1. Auto Buy & Upgrade (ปรับความถี่ให้ปลอดภัยขึ้น)
 ------------------------------------------------------------------
 CreateToggleButton("AutoUpgradeBtn", "Auto Upgrade", function(state)
     _G.AutoUpgrade = state
     task.spawn(function()
         while _G.AutoUpgrade do
             pcall(function()
-                local remotes = game:GetService("ReplicatedStorage").Remotes
-                remotes.BuyGenerator:InvokeServer(1)
-                remotes.BuyGenerator:InvokeServer(2)
-                task.wait(0.3)
-                remotes.UpgradeGenerator:InvokeServer(1)
-                remotes.UpgradeGenerator:InvokeServer(2)
+                local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+                if remotes then
+                    remotes.BuyGenerator:InvokeServer(1)
+                    task.wait(0.3)
+                    remotes.BuyGenerator:InvokeServer(2)
+                    task.wait(0.3)
+                    remotes.UpgradeGenerator:InvokeServer(1)
+                    task.wait(0.3)
+                    remotes.UpgradeGenerator:InvokeServer(2)
+                end
             end)
-            task.wait(0.8) -- หน่วงเวลาเพื่อความปลอดภัย
+            task.wait(1.5) -- เพิ่มระยะเวลาหน่วงเป็น 1.5 วินาที
         end
     end)
 end)
@@ -116,9 +120,12 @@ CreateToggleButton("AutoRebirthBtn", "Auto Rebirth", function(state)
     task.spawn(function()
         while _G.AutoRebirth do
             pcall(function()
-                game:GetService("ReplicatedStorage").Remotes.Rebirth:InvokeServer()
+                local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+                if remotes and remotes:FindFirstChild("Rebirth") then
+                    remotes.Rebirth:InvokeServer()
+                end
             end)
-            task.wait(1.5)
+            task.wait(3.0) -- ปรับเป็น 3 วินาทีเพื่อความชัวร์
         end
     end)
 end)
@@ -131,9 +138,12 @@ CreateToggleButton("AutoTowerBtn", "Auto Tower", function(state)
     task.spawn(function()
         while _G.AutoTower do
             pcall(function()
-                game:GetService("ReplicatedStorage").Remotes.TowerStart:InvokeServer()
+                local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+                if remotes and remotes:FindFirstChild("TowerStart") then
+                    remotes.TowerStart:InvokeServer()
+                end
             end)
-            task.wait(2.5) -- หน่วงเวลาเพื่อป้องกัน Anti-Cheat
+            task.wait(5.0) -- ปรับเป็น 5 วินาที ลดความถี่ไม่ให้โดนเตะ
         end
     end)
 end)
