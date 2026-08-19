@@ -3,14 +3,14 @@ if game:GetService("CoreGui"):FindFirstChild("ChickenMobileUI") then
     game:GetService("CoreGui").ChickenMobileUI:Destroy()
 end
 
--- ระบบ Anti-AFK (กันหลุดเวลาเปิดทิ้งไว้)
+-- ระบบ Anti-AFK
 local VirtualUser = game:GetService("VirtualUser")
 game:GetService("Players").LocalPlayer.Idled:Connect(function()
     VirtualUser:CaptureController()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
--- สร้าง UI หลักสำหรับ Delta มือถือ
+-- UI Setup
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
@@ -21,7 +21,6 @@ ScreenGui.Name = "ChickenMobileUI"
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.ResetOnSpawn = false
 
--- ปุ่ม Menu ลอย
 ToggleWindowBtn.Name = "ToggleWindowBtn"
 ToggleWindowBtn.Parent = ScreenGui
 ToggleWindowBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
@@ -33,7 +32,6 @@ ToggleWindowBtn.Active = true
 ToggleWindowBtn.Draggable = true
 Instance.new("UICorner", ToggleWindowBtn).CornerRadius = UDim.new(0.5, 0)
 
--- หน้าต่างหลัก
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
@@ -46,7 +44,7 @@ Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 Title.Parent = MainFrame
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
 Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "Grow A Chicken (Super Safe)"
+Title.Text = "Grow A Chicken (Queue Fix)"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 12)
 
@@ -59,14 +57,15 @@ ToggleWindowBtn.MouseButton1Click:Connect(function()
 end)
 
 ------------------------------------------------------------------
--- ตัวแปรสถานะ
+-- ตัวแปรสถานะ & ระบบ Queue ป้องกันคำสั่งชนกัน
 ------------------------------------------------------------------
 local _G = _G or {}
 _G.AutoUpgrade = false
 _G.AutoRebirth = false
 _G.AutoTower = false
 
--- ฟังก์ชันสร้างปุ่ม Toggle
+local isBusy = false -- ตัวแปรเช็คว่ามี Remote อื่นกำลังทำงานอยู่ไหม
+
 local function CreateToggleButton(name, text, callback)
     local Btn = Instance.new("TextButton")
     Btn.Parent = MainFrame
@@ -85,68 +84,69 @@ local function CreateToggleButton(name, text, callback)
     end)
 end
 
--- เว้นระยะ
 Instance.new("Frame", MainFrame).Size = UDim2.new(1, 0, 0, 30)
 
 ------------------------------------------------------------------
--- 1. Auto Buy & Upgrade (แยกจังหวะให้เว้นระยะ ป้องกันตรวจจับ)
+-- Loop หลัก: จัดคิวทำงานทีละอย่าง สลับกันนุ่มนวล
 ------------------------------------------------------------------
-CreateToggleButton("AutoUpgradeBtn", "Auto Upgrade", function(state)
-    _G.AutoUpgrade = state
-    task.spawn(function()
-        while _G.AutoUpgrade do
-            pcall(function()
-                local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-                if remotes then
-                    -- ซื้อและอัปเกรดชิ้นที่ 1
-                    if remotes:FindFirstChild("BuyGenerator") then remotes.BuyGenerator:InvokeServer(1) end
-                    task.wait(0.8)
-                    if remotes:FindFirstChild("UpgradeGenerator") then remotes.UpgradeGenerator:InvokeServer(1) end
-                    task.wait(0.8)
-                    
-                    -- ซื้อและอัปเกรดชิ้นที่ 2
-                    if remotes:FindFirstChild("BuyGenerator") then remotes.BuyGenerator:InvokeServer(2) end
-                    task.wait(0.8)
-                    if remotes:FindFirstChild("UpgradeGenerator") then remotes.UpgradeGenerator:InvokeServer(2) end
-                end
-            end)
-            task.wait(2.5) -- หน่วงเวลารอบใหญ่
+task.spawn(function()
+    while true do
+        task.wait(1.2) -- เว้นระยะรอบใหญ่ ไม่ให้เซิร์ฟเวอร์สงสัย
+        
+        local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+        if remotes and not isBusy then
+            
+            -- 1. ลำดับ Rebirth (สำคัญสุด)
+            if _G.AutoRebirth then
+                isBusy = true
+                pcall(function()
+                    if remotes:FindFirstChild("Rebirth") then
+                        remotes.Rebirth:InvokeServer()
+                    end
+                end)
+                task.wait(2.0) -- พักหลัง Rebirth
+                isBusy = false
+            end
+
+            -- 2. ลำดับ Start Tower
+            if _G.AutoTower and not isBusy then
+                isBusy = true
+                pcall(function()
+                    if remotes:FindFirstChild("TowerStart") then
+                        remotes.TowerStart:InvokeServer()
+                    end
+                end)
+                task.wait(2.0) -- พักหลัง Tower
+                isBusy = false
+            end
+
+            -- 3. ลำดับ Upgrade
+            if _G.AutoUpgrade and not isBusy then
+                isBusy = true
+                pcall(function()
+                    if remotes:FindFirstChild("BuyGenerator") then
+                        remotes.BuyGenerator:InvokeServer(1)
+                        task.wait(0.5)
+                        remotes.BuyGenerator:InvokeServer(2)
+                    end
+                    task.wait(0.5)
+                    if remotes:FindFirstChild("UpgradeGenerator") then
+                        remotes.UpgradeGenerator:InvokeServer(1)
+                        task.wait(0.5)
+                        remotes.UpgradeGenerator:InvokeServer(2)
+                    end
+                end)
+                task.wait(1.5)
+                isBusy = false
+            end
+            
         end
-    end)
+    end
 end)
 
 ------------------------------------------------------------------
--- 2. Auto Rebirth
+-- ปุ่มกด Toggle สวิตช์
 ------------------------------------------------------------------
-CreateToggleButton("AutoRebirthBtn", "Auto Rebirth", function(state)
-    _G.AutoRebirth = state
-    task.spawn(function()
-        while _G.AutoRebirth do
-            pcall(function()
-                local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-                if remotes and remotes:FindFirstChild("Rebirth") then
-                    remotes.Rebirth:InvokeServer()
-                end
-            end)
-            task.wait(5.0) -- เพิ่มเป็น 5 วินาที
-        end
-    end)
-end)
-
-------------------------------------------------------------------
--- 3. Auto Start Tower
-------------------------------------------------------------------
-CreateToggleButton("AutoTowerBtn", "Auto Tower", function(state)
-    _G.AutoTower = state
-    task.spawn(function()
-        while _G.AutoTower do
-            pcall(function()
-                local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-                if remotes and remotes:FindFirstChild("TowerStart") then
-                    remotes.TowerStart:InvokeServer()
-                end
-            end)
-            task.wait(8.0) -- หน่วง 8 วินาทีต่อการส่ง 1 ครั้ง
-        end
-    end)
-end)
+CreateToggleButton("AutoUpgradeBtn", "Auto Upgrade", function(state) _G.AutoUpgrade = state end)
+CreateToggleButton("AutoRebirthBtn", "Auto Rebirth", function(state) _G.AutoRebirth = state end)
+CreateToggleButton("AutoTowerBtn", "Auto Tower", function(state) _G.AutoTower = state end)
