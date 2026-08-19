@@ -3,14 +3,14 @@ if game:GetService("CoreGui"):FindFirstChild("ChickenMobileUI") then
     game:GetService("CoreGui").ChickenMobileUI:Destroy()
 end
 
--- ระบบ Anti-AFK (กันหลุดเวลาเปิดทิ้งไว้)
+-- ระบบ Anti-AFK
 local VirtualUser = game:GetService("VirtualUser")
 game:GetService("Players").LocalPlayer.Idled:Connect(function()
     VirtualUser:CaptureController()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
--- สร้าง UI สำหรับ Delta / Redfinger
+-- สร้าง UI สำหรับ Redfinger
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
@@ -21,7 +21,6 @@ ScreenGui.Name = "ChickenMobileUI"
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.ResetOnSpawn = false
 
--- ปุ่ม Menu ลอย (ขยับลากย้ายได้)
 ToggleWindowBtn.Name = "ToggleWindowBtn"
 ToggleWindowBtn.Parent = ScreenGui
 ToggleWindowBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
@@ -33,7 +32,6 @@ ToggleWindowBtn.Active = true
 ToggleWindowBtn.Draggable = true
 Instance.new("UICorner", ToggleWindowBtn).CornerRadius = UDim.new(0.5, 0)
 
--- หน้าต่างหลัก
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
@@ -46,7 +44,7 @@ Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 Title.Parent = MainFrame
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
 Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "Grow A Chicken (Ultra Safe)"
+Title.Text = "Redfinger Fix Mode"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 12)
 
@@ -58,15 +56,11 @@ ToggleWindowBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
-------------------------------------------------------------------
--- ตัวแปรสถานะ
-------------------------------------------------------------------
 local _G = _G or {}
 _G.AutoUpgrade = false
 _G.AutoRebirth = false
 _G.AutoTower = false
 
--- ฟังก์ชันสร้างปุ่ม Toggle
 local function CreateToggleButton(name, text, callback)
     local Btn = Instance.new("TextButton")
     Btn.Parent = MainFrame
@@ -85,13 +79,12 @@ local function CreateToggleButton(name, text, callback)
     end)
 end
 
--- เว้นระยะ
 Instance.new("Frame", MainFrame).Size = UDim2.new(1, 0, 0, 30)
 
 ------------------------------------------------------------------
--- 1. Auto Buy & Upgrade Generator (1 และ 2)
+-- 1. Auto Buy & Upgrade (ขยายเวลาเว้นช่วงสำหรับ Redfinger)
 ------------------------------------------------------------------
-CreateToggleButton("AutoUpgradeBtn", "Auto Buy & Upgrade", function(state)
+CreateToggleButton("AutoUpgradeBtn", "Auto Upgrade", function(state)
     _G.AutoUpgrade = state
     task.spawn(function()
         while _G.AutoUpgrade do
@@ -99,15 +92,15 @@ CreateToggleButton("AutoUpgradeBtn", "Auto Buy & Upgrade", function(state)
                 local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
                 if remotes then
                     remotes.BuyGenerator:InvokeServer(1)
-                    task.wait(0.3)
-                    remotes.BuyGenerator:InvokeServer(2)
-                    task.wait(0.3)
+                    task.wait(1.5) -- เว้นช่วง 1.5 วินาที เพื่อไม่ให้เน็ต Redfinger ส่งแพ็กเกจชนกัน
                     remotes.UpgradeGenerator:InvokeServer(1)
-                    task.wait(0.3)
+                    task.wait(1.5)
+                    remotes.BuyGenerator:InvokeServer(2)
+                    task.wait(1.5)
                     remotes.UpgradeGenerator:InvokeServer(2)
                 end
             end)
-            task.wait(1.5) -- ระยะเวลาเว้นช่วงเพื่อความเสถียร
+            task.wait(4)
         end
     end)
 end)
@@ -120,9 +113,12 @@ CreateToggleButton("AutoRebirthBtn", "Auto Rebirth", function(state)
     task.spawn(function()
         while _G.AutoRebirth do
             pcall(function()
-                game:GetService("ReplicatedStorage").Remotes.Rebirth:InvokeServer()
+                local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+                if remotes then
+                    remotes.Rebirth:InvokeServer()
+                end
             end)
-            task.wait(2)
+            task.wait(5)
         end
     end)
 end)
@@ -135,9 +131,12 @@ CreateToggleButton("AutoTowerBtn", "Auto Start Tower", function(state)
     task.spawn(function()
         while _G.AutoTower do
             pcall(function()
-                game:GetService("ReplicatedStorage").Remotes.TowerStart:InvokeServer()
+                local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+                if remotes then
+                    remotes.TowerStart:InvokeServer()
+                end
             end)
-            task.wait(3) -- หน่วงเวลา 3 วินาที ป้องกันเซิร์ฟเวอร์เตะ
+            task.wait(8) -- ตั้งไว้ 8 วินาที เพื่อให้มั่นใจว่าตัวละครใน Redfinger โหลดเข้า Tower เสร็จแล้วจริงๆ
         end
     end)
 end)
