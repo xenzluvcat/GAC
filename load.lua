@@ -44,7 +44,7 @@ Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 Title.Parent = MainFrame
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
 Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "Grow A Chicken (Queue Fix)"
+Title.Text = "Grow A Chicken (Bypass BAC)"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 12)
 
@@ -57,14 +57,14 @@ ToggleWindowBtn.MouseButton1Click:Connect(function()
 end)
 
 ------------------------------------------------------------------
--- ตัวแปรสถานะ & ระบบ Queue ป้องกันคำสั่งชนกัน
+-- ตัวแปรสถานะ
 ------------------------------------------------------------------
 local _G = _G or {}
 _G.AutoUpgrade = false
 _G.AutoRebirth = false
 _G.AutoTower = false
 
-local isBusy = false -- ตัวแปรเช็คว่ามี Remote อื่นกำลังทำงานอยู่ไหม
+local isProcessing = false
 
 local function CreateToggleButton(name, text, callback)
     local Btn = Instance.new("TextButton")
@@ -86,58 +86,61 @@ end
 
 Instance.new("Frame", MainFrame).Size = UDim2.new(1, 0, 0, 30)
 
+-- ฟังก์ชันเซฟยิง Remote (รองรับทั้ง Invoke และ Fire แบบไม่ค้าง)
+local function SafeCall(remote, method, ...)
+    if not remote then return end
+    local args = {...}
+    task.spawn(function()
+        pcall(function()
+            if method == "Invoke" and remote:IsA("RemoteFunction") then
+                remote:InvokeServer(unpack(args))
+            elseif remote:IsA("RemoteEvent") then
+                remote:FireServer(unpack(args))
+            elseif remote:IsA("RemoteFunction") then
+                remote:InvokeServer(unpack(args))
+            end
+        end)
+    end)
+end
+
 ------------------------------------------------------------------
--- Loop หลัก: จัดคิวทำงานทีละอย่าง สลับกันนุ่มนวล
+-- ระบบ Queue + Random Delay หลบการตรวจจับ
 ------------------------------------------------------------------
 task.spawn(function()
     while true do
-        task.wait(1.2) -- เว้นระยะรอบใหญ่ ไม่ให้เซิร์ฟเวอร์สงสัย
+        task.wait(math.random(15, 25) / 10) -- สุ่มเวลารอ 1.5 - 2.5 วินาที
         
         local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-        if remotes and not isBusy then
+        if remotes and not isProcessing then
             
-            -- 1. ลำดับ Rebirth (สำคัญสุด)
+            -- 1. Auto Rebirth
             if _G.AutoRebirth then
-                isBusy = true
-                pcall(function()
-                    if remotes:FindFirstChild("Rebirth") then
-                        remotes.Rebirth:InvokeServer()
-                    end
-                end)
-                task.wait(2.0) -- พักหลัง Rebirth
-                isBusy = false
+                isProcessing = true
+                SafeCall(remotes:FindFirstChild("Rebirth"), "Invoke")
+                task.wait(math.random(30, 45) / 10) -- หน่วงหลัง Rebirth 3.0 - 4.5 วินาที
+                isProcessing = false
             end
 
-            -- 2. ลำดับ Start Tower
-            if _G.AutoTower and not isBusy then
-                isBusy = true
-                pcall(function()
-                    if remotes:FindFirstChild("TowerStart") then
-                        remotes.TowerStart:InvokeServer()
-                    end
-                end)
-                task.wait(2.0) -- พักหลัง Tower
-                isBusy = false
+            -- 2. Auto Start Tower
+            if _G.AutoTower and not isProcessing then
+                isProcessing = true
+                SafeCall(remotes:FindFirstChild("TowerStart"), "Invoke")
+                task.wait(math.random(35, 50) / 10) -- หน่วงหลัง Tower 3.5 - 5.0 วินาที
+                isProcessing = false
             end
 
-            -- 3. ลำดับ Upgrade
-            if _G.AutoUpgrade and not isBusy then
-                isBusy = true
-                pcall(function()
-                    if remotes:FindFirstChild("BuyGenerator") then
-                        remotes.BuyGenerator:InvokeServer(1)
-                        task.wait(0.5)
-                        remotes.BuyGenerator:InvokeServer(2)
-                    end
-                    task.wait(0.5)
-                    if remotes:FindFirstChild("UpgradeGenerator") then
-                        remotes.UpgradeGenerator:InvokeServer(1)
-                        task.wait(0.5)
-                        remotes.UpgradeGenerator:InvokeServer(2)
-                    end
-                end)
-                task.wait(1.5)
-                isBusy = false
+            -- 3. Auto Upgrade
+            if _G.AutoUpgrade and not isProcessing then
+                isProcessing = true
+                SafeCall(remotes:FindFirstChild("BuyGenerator"), "Invoke", 1)
+                task.wait(0.8)
+                SafeCall(remotes:FindFirstChild("BuyGenerator"), "Invoke", 2)
+                task.wait(0.8)
+                SafeCall(remotes:FindFirstChild("UpgradeGenerator"), "Invoke", 1)
+                task.wait(0.8)
+                SafeCall(remotes:FindFirstChild("UpgradeGenerator"), "Invoke", 2)
+                task.wait(2.0)
+                isProcessing = false
             end
             
         end
